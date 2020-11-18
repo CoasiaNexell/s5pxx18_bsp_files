@@ -1,0 +1,11 @@
+hwrevision	1.0
+sw-versions 2.0
+swu.public.key  1.0
+bl1		2.0
+fip-loader-emmc		2.0
+fip-secure		2.0
+fip-nonsecure	2.0
+env		2.0
+bootimg		2.0
+rootimg		2.0
+dataimg		2.0

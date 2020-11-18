@@ -1,0 +1,145 @@
+software =
+{
+	version = "2.0";
+	hardware-compatibility: [ "1.0", "2.0" ];
+
+	scripts: (
+        	{
+			/*
+			 * 1. umount /misc to re-partition with 'partitions' entry
+			 * 2. disable ro mode '/sys/block/mmcblk0/force_ro'
+			 */
+            filename = "swu-script-preinstall.sh";
+			data = "mmcblk0";			/* argument $1 */
+            type = "preinstall";			/* called before installing the images */
+			sha256 = "@swu-script-preinstall.sh";
+	        },
+        	{
+			/*
+			 * remount /dev/mmcblk0p3 -> /misc
+		  	 */
+	        filename = "swu-script-postinstall.sh";
+			data = "mmcblk0p3";			/* argument $1 */
+            type = "postinstall";			/* called after installing the images */
+			sha256 = "@swu-script-postinstall.sh";
+	        }
+	);
+
+	/* update partition images */
+	images: (
+		{
+			name = "bl1";
+			filename = "bl1-emmcboot.bin";
+			device = "/dev/mmcblk0";		/* partition */
+			type = "raw";
+			offset = "0x200";				/* must be string */
+			sha256 = "@bl1-emmcboot.bin";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "bl2";
+			filename = "loader-emmc.img"
+			device = "/dev/mmcblk0";		/* partition */
+			type = "raw";
+			offset = "0x10200";			/* must be string */
+			sha256 = "@loader-emmc.img";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "bl32";
+			filename = "bl_mon.img";
+			device = "/dev/mmcblk0";		/* partition */
+			type = "raw";
+			offset = "0x40200";			/* must be string */
+			sha256 = "@bl_mon.img";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "bootloader";
+			filename = "bootloader.img";
+			device = "/dev/mmcblk0";		/* partition */
+			type = "raw";
+			offset = "0x1E0200";			/* must be string */
+			sha256 = "@bootloader.img";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "env";
+			filename = "params.bin";
+			device = "/dev/mmcblk0";		/* partition */
+			type = "raw";
+			offset = "0x2E0200";			/* must be string */
+			sha256 = "@params.bin";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "bootimg";
+			filename = "boot.img";
+			device = "/dev/mmcblk0";		/* partition */
+			type = "android-sparse";
+			offset = "0x400000";			/* must be string */
+			sha256 = "@boot.img";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "rootimg";
+			filename = "rootfs.img";
+			device = "/dev/mmcblk0";		/* partition */
+			type = "android-sparse";
+			offset = "0x6400000";			/* must be string */
+			sha256 = "@rootfs.img";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "dataimg";
+			filename = "userdata.img";
+			device = "/dev/mmcblk0";		/* partition */
+			type = "android-sparse";
+			offset = "0xC6400000";			/* must be string */
+			sha256 = "@userdata.img";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		}
+	);
+
+	/* update files for version and key */
+	files: (
+		{
+			name = "hwrevision";
+			filename = "misc/etc/hwrevision";
+			filesystem = "ext4";			/* mount <device> <filesystem> /tmp/datadst */
+			device = "/dev/mmcblk0p3";
+			path = "etc/hwrevision";		/* update file: /tmp/datadst/<path>" */
+			sha256 = "@misc/etc/hwrevision";
+			version = "1.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "sw-versions";
+			filename = "misc/etc/sw-versions";
+			filesystem = "ext4";			/* mount <device> <filesystem> /tmp/datadst */
+			device = "/dev/mmcblk0p3";
+			path = "etc/sw-versions";		/* update file: /tmp/datadst/<path>" */
+			sha256 = "@misc/etc/sw-versions";
+			version = "2.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		},
+		{
+			name = "swu.public.key";
+			filename = "misc/etc/swu.public.key";
+			filesystem = "ext4";			/* mount <device> <filesystem> /tmp/datadst */
+			device = "/dev/mmcblk0p3";
+			path = "etc/swu.public.key";		/* update file: /tmp/datadst/<path>" */
+			sha256 = "@misc/etc/swu.public.key";
+			version = "1.0";			/* compare with name '/misc/etc/sw-versions' */
+			install-if-different = true;
+		}
+	);
+}

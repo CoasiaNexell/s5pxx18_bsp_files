@@ -39,8 +39,28 @@ UPDATE_SVMDATA=false
 UPDATE_ROOT=false
 UPDATE_SYSTEM=false
 UPDATE_DATA=false
-RESULT_DIR=`readlink -ev $CURRENT_PATH/..`
 
+HAS_2NDBOOT_IN_PARTMAP=false
+HAS_BLMON_IN_PARTMAP=false
+HAS_BOOT_IN_PARTMAP=false
+HAS_BOOTLOADER_IN_PARTMAP=false
+HAS_ENV_IN_PARTMAP=false
+HAS_FIP_LOADER_IN_PARTMAP=false
+HAS_FIP_SECURE_IN_PARTMAP=false
+HAS_FIP_NONESECURE_IN_PARTMAP=false
+HAS_LOADER_IN_PARTMAP=false
+HAS_MISC_IN_PARTMAP=false
+HAS_MODULES_IN_PARTMAP=false
+HAS_ROOTFS_IN_PARTMAP=false
+HAS_SVMDATA_IN_PARTMAP=false
+HAS_SYSTEM_IN_PARTMAP=false
+HAS_USER_IN_PARTMAP=false
+
+
+RESULT_DIR=`readlink -ev $CURRENT_PATH/..`
+RESULT_INFO=`readlink -ev $CURRENT_PATH/../YOCTO.*.INFO.*`
+
+BUILD_NAME=
 MACHINE_NAME=
 BOARD_SOCNAME=
 BOARD_NAME=
@@ -95,16 +115,63 @@ function parse_args()
 
     PARTMAP=$TOOLS_PATH/partmap_emmc.txt
 
-    IFS='/' array=($RESULT_DIR)
+	IFS='/' array=($RESULT_INFO)
     local temp="${array[-1]}"
 
-    MACHINE_NAME=${temp#*-}
+    IFS='.' array=($temp)
+    local RESULT_NAME="${array[1]}"
+
+    BUILD_NAME=${RESULT_NAME#*-}
+    OLD_IFS=$IFS
+    IFS=-
+    TEMP_ARRAY=($BUILD_NAME)
+    IFS=$OLD_IFS
+
+	MACHINE_NAME=${BUILD_NAME%-*}
     BOARD_SOCNAME=${MACHINE_NAME%%-*}
     IMAGE_TYPE=${MACHINE_NAME#*-*-*-}
     BOARD_NAME=${MACHINE_NAME#*-}
     BOARD_PREFIX=${BOARD_NAME%-*}
 
     IFS=''
+}
+
+function parse_partmap()
+{
+	local partmap=${1}
+	if [ ! -f ${partmap} ]; then
+		echo -e "\033[91mpartmap file -- ${partmap} -- no exist!!!\033[0m"
+		exit 0
+	fi
+
+	while IFS='' read -r i; # || [ -n "$i" ];
+	do
+		IFS=':' read -r -a array <<< "$i"
+
+		case "${array[1]}" in
+			2ndboot )		HAS_2NDBOOT_IN_PARTMAP=true;;
+			blmon )			HAS_BLMON_IN_PARTMAP=true;;
+			boot )			HAS_BOOT_IN_PARTMAP=true;;
+			bootloader )	HAS_BOOTLOADER_IN_PARTMAP=true;;
+			env )			HAS_ENV_IN_PARTMAP=true;;
+			fip-loader )	HAS_FIP_LOADER_IN_PARTMAP=true;;
+			fip-nonsecure )	HAS_FIP_NONESECURE_IN_PARTMAP=true;;
+			fip-secure )	HAS_FIP_SECURE_IN_PARTMAP=true;;
+			loader )		HAS_LOADER_IN_PARTMAP=true;;
+			misc )			HAS_MISC_IN_PARTMAP=true;;
+			modules )		HAS_MODULES_IN_PARTMAP=true;;
+			rootfs )		HAS_ROOTFS_IN_PARTMAP=true;;
+			svmdata )		HAS_SVMDATA_IN_PARTMAP=true;;
+			system )		HAS_SYSTEM_IN_PARTMAP=true;;
+			user )			HAS_USER_IN_PARTMAP=true;;
+			*)
+				if [ -n "${array[1]}" ]
+				then
+					echo "Not supported type: ${array[1]}"
+				fi
+				;;
+		esac
+	done < "$partmap"
 }
 
 function print_args()
@@ -165,7 +232,7 @@ function update_partmap()
 {
 	local partmap=${1}
 	if [ ! -f ${partmap} ]; then
-		echo "partmap file -- ${partmap} -- no exist!!!"
+		echo -e "\033[91mpartmap file -- ${partmap} -- no exist!!!\033[0m"
 		exit 0
 	fi
 
@@ -174,8 +241,16 @@ function update_partmap()
 
 function update_bl1()
 {
+	if [ ${HAS_2NDBOOT_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_BL1} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update bl1: ${file}"
 		flash 2ndboot ${file}
 	fi
@@ -183,8 +258,16 @@ function update_bl1()
 
 function update_bl2()
 {
+	if [ ${HAS_LOADER_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_BL2} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update bl2: ${file}"
 		flash loader ${file}
 	fi
@@ -192,8 +275,16 @@ function update_bl2()
 
 function update_dispatcher()
 {
+	if [ ${HAS_BLMON_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_DISPATCHER} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update dispatcher: ${file}"
 		flash blmon ${file}
 	fi
@@ -201,8 +292,16 @@ function update_dispatcher()
 
 function update_bootloader()
 {
+	if [ ${HAS_BOOTLOADER_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_BOOTLOADER} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update bootloader: ${file}"
 		flash bootloader ${file}
 	fi
@@ -210,8 +309,16 @@ function update_bootloader()
 
 function update_fip1()
 {
+	if [ ${HAS_FIP_LOADER_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_BOOTLOADER} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update loader: ${file}"
 		flash fip-loader ${file}
 	fi
@@ -219,8 +326,16 @@ function update_fip1()
 
 function update_fip2()
 {
+	if [ ${HAS_FIP_SECURE_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_BOOTLOADER} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update secure: ${file}"
 		flash fip-secure ${file}
 	fi
@@ -228,8 +343,16 @@ function update_fip2()
 
 function update_fip3()
 {
+	if [ ${HAS_FIP_NONESECURE_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_BOOTLOADER} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update nonsecure: ${file}"
 		flash fip-nonsecure ${file}
 	fi
@@ -237,8 +360,16 @@ function update_fip3()
 
 function update_env()
 {
+	if [ ${HAS_ENV_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_ENV} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update env: ${file}"
 		flash env ${file}
 	fi
@@ -246,8 +377,16 @@ function update_env()
 
 function update_boot()
 {
+	if [ ${HAS_BOOT_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_BOOT} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update boot: ${file}"
 		flash boot ${file}
 	fi
@@ -255,8 +394,16 @@ function update_boot()
 
 function update_modules()
 {
+	if [ ${HAS_MODULES_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_MODULES} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update modules: ${file}"
 		flash modules ${file}
 	fi
@@ -264,8 +411,16 @@ function update_modules()
 
 function update_svmdata()
 {
+	if [ ${HAS_SVMDATA_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_SVMDATA} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update svmdata: ${file}"
 		flash svmdata ${file}
 	fi
@@ -273,8 +428,16 @@ function update_svmdata()
 
 function update_misc()
 {
+	if [ ${HAS_MISC_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_MISC} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update misc: ${file}"
 		flash misc ${file}
 	fi
@@ -282,22 +445,38 @@ function update_misc()
 
 function update_root()
 {
+	if [ ${HAS_ROOTFS_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_ROOT} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update rootfs: ${file}"
-                if [ ${MACHINE_NAME} == "s5p4418-smart-voice" -o ${MACHINE_NAME} == "s5p4418-ff-voice" ]; then
-		    sudo fastboot flash setenv ${CURRENT_PATH}/partition.txt
-                    sudo fastboot -S 0 flash rootfs ${file}
-                else
-                    flash rootfs ${file}
-                fi
+		if [ ${MACHINE_NAME} == "s5p4418-smart-voice" -o ${MACHINE_NAME} == "s5p4418-ff-voice" ]; then
+			sudo fastboot flash setenv ${CURRENT_PATH}/partition.txt
+			sudo fastboot -S 0 flash rootfs ${file}
+		else
+			flash rootfs ${file}
+		fi
 	fi
 }
 
 function update_system()
 {
+	if [ ${HAS_SYSTEM_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_SYSTEM} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update system: ${file}"
 		flash system ${file}
 	fi
@@ -305,8 +484,16 @@ function update_system()
 
 function update_data()
 {
+	if [ ${HAS_USER_IN_PARTMAP} == "false" ]; then
+		return 0
+	fi
+
 	if [ ${UPDATE_ALL} == "true" ] || [ ${UPDATE_DATA} == "true" ]; then
 		local file=${1}
+		if [ ! -f ${file} ]; then
+			echo -e "\033[91m File is not exist!!! -- ${file}\033[0m"
+			return 0
+		fi
 		vmsg "update data: ${file}"
 		flash user ${file}
 	fi
@@ -314,11 +501,13 @@ function update_data()
 
 parse_args $@
 print_args
+
+parse_partmap ${PARTMAP}
 update_partmap ${PARTMAP}
 
 if [ "${BOARD_SOCNAME}" == "s5p6818" ]; then
     update_bl1 ${RESULT_DIR}/bl1-emmcboot.img
-    if [ "${BOARD_PREFIX}" == "svt-ref" ]; then
+    if [ "${BOARD_NAME}" == "svt-ref" ]; then
         update_fip1 ${RESULT_DIR}/fip-loader-sd.img
     else
         update_fip1 ${RESULT_DIR}/fip-loader-emmc.img
@@ -334,12 +523,8 @@ fi
 
 update_env ${RESULT_DIR}/params.bin
 update_boot ${RESULT_DIR}/boot.img
-if [ "${MACHINE_NAME}" == "s5p4418-convergence-daudio-qt" ]; then
 update_svmdata ${RESULT_DIR}/svmdata.img
-fi
-if [ "${MACHINE_NAME}" == "s5p4418-convergence-svmc-qt" ] || [ "${MACHINE_NAME}" == "s5p4418-navi-ref-qt" ] || [ "${MACHINE_NAME}" == "s5p6818-avn-ref-qt" ] || [ "${MACHINE_NAME}" == "s5p6818-convergence-svmc-qt" ]; then
 update_misc ${RESULT_DIR}/misc.img
-fi
 update_root ${RESULT_DIR}/rootfs.img
 update_data ${RESULT_DIR}/userdata.img
 
